@@ -27,14 +27,22 @@ public final class Indexer extends SubsystemBase implements NiceSubsytem {
         return instance;
     }
 
-    private final WPI_VictorSPX stage1;
+    private final TalonFX stage1;
     private final TalonFX feeder;
 
     private final edu.wpi.first.wpilibj.Timer oscillateTimer = new edu.wpi.first.wpilibj.Timer();
 
     private Indexer() {
-        stage1 = new WPI_VictorSPX(Constants.Indexer.STAGE1_MOTOR_PORT);
-        stage1.setInverted(true);
+
+        stage1 = new TalonFX(Constants.Indexer.STAGE1_MOTOR_PORT);
+
+        final TalonFXConfiguration stage1Con = new TalonFXConfiguration()
+                .withMotorOutput(new MotorOutputConfigs().withNeutralMode(NeutralModeValue.Brake)
+                        .withInverted(InvertedValue.Clockwise_Positive))
+                .withCurrentLimits(
+                        new CurrentLimitsConfigs().withStatorCurrentLimit(50).withStatorCurrentLimitEnable(true));
+
+        stage1.getConfigurator().apply(stage1Con);
 
         // // Cap output voltage to 8V (tune this down as needed)
         // VictorSPXConfiguration stage1Config = new VictorSPXConfiguration();
@@ -51,17 +59,17 @@ public final class Indexer extends SubsystemBase implements NiceSubsytem {
                 .withMotorOutput(new MotorOutputConfigs().withNeutralMode(NeutralModeValue.Brake)
                         .withInverted(InvertedValue.Clockwise_Positive))
                 .withCurrentLimits(
-                        new CurrentLimitsConfigs().withStatorCurrentLimit(90).withStatorCurrentLimitEnable(true));
+                        new CurrentLimitsConfigs().withStatorCurrentLimit(40).withStatorCurrentLimitEnable(true));
 
         feeder.getConfigurator().apply(config);
     }
 
     public Runnable stage1On() {
-        return () -> stage1.set(1);
+        return () -> stage1.set(0.5);
     }
 
     public Runnable stage1Back() {
-        return () -> stage1.set(-1);
+        return () -> stage1.set(-0.5);
     }
 
     public Runnable stage1Off() {

@@ -26,8 +26,8 @@ public final class Constants {
     }
 
     public static final class Operator {
-        public static final int DRIVER_CONTROLLER_PORT = 1;
-        public static final int OPERATOR_CONTROLLER_PORT = 2;
+        public static final int DRIVER_CONTROLLER_PORT = 0;
+        public static final int OPERATOR_CONTROLLER_PORT = 1;
 
         public static final double SLIGHT_CREEP_NERF_DRIVE = 1;
         public static final double SLIGHT_CREEP_NERF_ROTATE = 1;
@@ -76,10 +76,10 @@ public final class Constants {
         public static final double I = 0.0;
         public static final double D = 0;
         public static final double S = 0.1;
-        public static final double V = 0.2;
+        public static final double V = 0.3;
 
-        public static final double intakeOutRotations = 18;
-        public static final double intakeInRotations = 3;
+        public static final double intakeOutRotations = 20;
+        public static final double intakeInRotations = 0;
     }
 
     public static final class Vision {

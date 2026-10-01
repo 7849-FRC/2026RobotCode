@@ -26,11 +26,11 @@ public final class Shooter extends SubsystemBase implements NiceSubsytem {
         return instance;
     }
 
-    private final TalonFX left;
+    // private final TalonFX left;
     private final TalonFX right;
 
     private Shooter() {
-        left = new TalonFX(Constants.Shooter.LEFT_KRAKEN_CANID);
+        // left = new TalonFX(Constants.Shooter.LEFT_KRAKEN_CANID);
         right = new TalonFX(Constants.Shooter.RIGHT_KRAKEN_CANID);
 
         final TalonFXConfiguration config = new TalonFXConfiguration()
@@ -47,17 +47,11 @@ public final class Shooter extends SubsystemBase implements NiceSubsytem {
                 .withKV(Constants.Shooter.V)
                 .withKA(Constants.Shooter.A);
 
-        left.clearStickyFaults();
         right.clearStickyFaults();
 
-        left.getConfigurator().apply(config.withMotorOutput(
-                new MotorOutputConfigs().withInverted(InvertedValue.Clockwise_Positive)
-                        .withNeutralMode(NeutralModeValue.Coast)));
         right.getConfigurator().apply(config.withMotorOutput(
                 new MotorOutputConfigs().withInverted(InvertedValue.CounterClockwise_Positive)
                         .withNeutralMode(NeutralModeValue.Coast)));
-
-        left.getConfigurator().apply(shooterConfigs);
 
         right.getConfigurator().apply(shooterConfigs);
     }
@@ -67,27 +61,24 @@ public final class Shooter extends SubsystemBase implements NiceSubsytem {
             final VelocityVoltage request = new VelocityVoltage(rps)
                     .withSlot(0);
 
-            left.setControl(request);
             right.setControl(request);
         };
     }
 
     public Runnable stop() {
         return () -> {
-            left.stopMotor();
             right.stopMotor();
         };
     }
 
     public Runnable runFullSpeedRaw() {
         return () -> {
-            left.set(1);
             right.set(1);
         };
     }
 
     public double getRPS() {
-        return left.getVelocity().getValueAsDouble();
+        return right.getVelocity().getValueAsDouble();
     }
 
     @Override
@@ -97,10 +88,10 @@ public final class Shooter extends SubsystemBase implements NiceSubsytem {
 
     @Override
     public void periodic() {
-        SmartDashboard.putNumber("Left Velocity: ", left.getVelocity().getValueAsDouble());
-        SmartDashboard.putNumber("Right Velocity: ", right.getVelocity().getValueAsDouble());
+        // SmartDashboard.putNumber("Left Velocity: ", left.getVelocity().getValueAsDouble());
+        // SmartDashboard.putNumber("Right Velocity: ", right.getVelocity().getValueAsDouble());
 
-        SmartDashboard.putNumber("Shooter Power: ",
-                (left.getVelocity().getValueAsDouble() / Constants.Shooter.SHOOTER_MAX_RPS) * 100);
+        // SmartDashboard.putNumber("Shooter Power: ",
+        //         (left.getVelocity().getValueAsDouble() / Constants.Shooter.SHOOTER_MAX_RPS) * 100);
     }
 }

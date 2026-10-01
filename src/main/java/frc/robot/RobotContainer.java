@@ -1,7 +1,6 @@
 // Copyright (c) FIRST and other WPILib contributors.
 // Open Source Software; you can modify and/or share it under the terms of
 // the WPILib BSD license file in the root directory of this project.
-
 package frc.robot;
 
 import static frc.robot.Constants.DriveTrain.AIM_D;
@@ -19,7 +18,6 @@ import static frc.robot.Constants.Operator.SLIGHT_CREEP_NERF_ROTATE;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest.FieldCentricFacingAngle;
-import com.ctre.phoenix.led.LarsonAnimation.BounceMode;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import com.pathplanner.lib.auto.AutoBuilder;
@@ -35,20 +33,21 @@ import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
+import frc.robot.cmds.AimTimed;
 import frc.robot.cmds.BounceIntake;
-import frc.robot.cmds.PivotIntake;
+import frc.robot.cmds.IntakeTimed;
 import frc.robot.cmds.ShootAtCalculatedVelocity;
 import frc.robot.cmds.ShootAtSetSpeed;
+import frc.robot.cmds.ShootAtSetSpeedTimed;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.*;
-import frc.robot.subsystems.Intake.BounceState;
 import lib.RobotMethods;
 
 public final class RobotContainer implements RobotMethods {
         private final CommandSwerveDrivetrain drivetrain;
         private final Indexer indexer;
         private final Intake intake;
-        private final Vision vision;
+        // private final Vision vision;
         private final Shooter shooter;
 
         private final CommandXboxController joystick;
@@ -70,13 +69,13 @@ public final class RobotContainer implements RobotMethods {
                 drivetrain = TunerConstants.createDrivetrain();
                 indexer = Indexer.getInstance();
                 intake = Intake.getInstance();
-                vision = Vision.getInstance();
+                // vision = Vision.getInstance();
                 shooter = Shooter.getInstance();
 
                 drivetrain.initialize();
                 indexer.initialize();
                 intake.initialize();
-                vision.initialize();
+                // vision.initialize();
                 shooter.initialize();
 
                 joystick = new CommandXboxController(DRIVER_CONTROLLER_PORT);
@@ -153,96 +152,125 @@ public final class RobotContainer implements RobotMethods {
                                 .withRotationalRate(
                                                 -joystick.getRightX() * MAX_ANGULAR_RATE * MAJOR_CREEP_NERF_ROTATE)));
 
-                // Aim drivetrain at hub target
-                joystick.a()
-                                .whileTrue(drivetrain.applyRequest(() -> aiming
-                                                .withVelocityX(Math.abs(joystick.getLeftY()) > 0.1
-                                                                ? -joystick.getLeftY()
-                                                                                * Constants.DriveTrain.AIM_MOVEMENT_NERF
-                                                                : 0)
-                                                .withVelocityY(Math.abs(joystick.getLeftX()) > 0.1
-                                                                ? -joystick.getLeftX()
-                                                                                * Constants.DriveTrain.AIM_MOVEMENT_NERF
-                                                                : 0)
-                                                .withTargetDirection(latestAngleToHubTargetCenter)))
-                                .onFalse(drivetrain.applyRequest(() -> drive
-                                                .withVelocityX(-joystick.getLeftY() * MAX_SPEED)
-                                                .withVelocityY(-joystick.getLeftX() * MAX_SPEED)
-                                                .withRotationalRate(-joystick.getRightX() * MAX_ANGULAR_RATE)));
-
-                // ── Operator Controls ──────────────────────────────────────────────────────
-
-                // Shoot at calculated velocity
-                operator.a()
-                                .whileTrue(
-                                                !intake.getState().equals(intake.getOutType())
-                                                                ? new ParallelCommandGroup(
-                                                                                new ShootAtCalculatedVelocity(shooter,
-                                                                                                indexer, vision),
-                                                                                new BounceIntake(intake))
-
-                                                                :
-
-                                                                new SequentialCommandGroup(
-                                                                                new PivotIntake(intake),
-                                                                                new ParallelCommandGroup(
-                                                                                                new ShootAtCalculatedVelocity(
-                                                                                                                shooter,
-                                                                                                                indexer,
-                                                                                                                vision))))
+                operator.rightBumper().whileTrue(
+                                new ParallelCommandGroup(
+                                                Commands.run(
+                                                                intake.runIntakeMotor()),
+                                                Commands.run(
+                                                                intake.feedNewFeeder()),
+                                                Commands.run(
+                                                                indexer.runFeeder(44))))
                                 .onFalse(
                                                 new ParallelCommandGroup(
-                                                                Commands.runOnce(shooter.stop()),
-                                                                Commands.runOnce(indexer.stage1Off()),
-                                                                Commands.runOnce(indexer.stopFeeder()),
-                                                                Commands.runOnce(intake.stopPivot())));
+                                                                Commands.run(
+                                                                                intake.stopIntakeMotor()),
+                                                                Commands.run(
+                                                                                intake.stopNewFeeder()),
+                                                                Commands.run(indexer.stopFeeder())));
+                operator.leftBumper().whileTrue(
+                                new ParallelCommandGroup(
+                                                Commands.run(
+                                                                intake.runIntakeMotor()),
+                                                Commands.run(
+                                                                intake.runNewFeeder())))
+                                .onFalse(
+                                                new ParallelCommandGroup(
+                                                                Commands.run(
+                                                                                intake.stopIntakeMotor()),
+                                                                Commands.run(
+                                                                                intake.stopNewFeeder())));
+
+                // Aim drivetrain at hub target
+                // joystick.a()
+                // .whileTrue(drivetrain.applyRequest(() -> aiming
+                // .withVelocityX(Math.abs(joystick.getLeftY()) > 0.1
+                // ? -joystick.getLeftY()
+                // * Constants.DriveTrain.AIM_MOVEMENT_NERF
+                // : 0)
+                // .withVelocityY(Math.abs(joystick.getLeftX()) > 0.1
+                // ? -joystick.getLeftX()
+                // * Constants.DriveTrain.AIM_MOVEMENT_NERF
+                // : 0)
+                // .withTargetDirection(latestAngleToHubTargetCenter)))
+                // .onFalse(drivetrain.applyRequest(() -> drive
+                // .withVelocityX(-joystick.getLeftY() * MAX_SPEED)
+                // .withVelocityY(-joystick.getLeftX() * MAX_SPEED)
+                // .withRotationalRate(-joystick.getRightX() * MAX_ANGULAR_RATE)));
+
+                // // ── Operator Controls
+                // ──────────────────────────────────────────────────────
+
+                // // Shoot at calculated velocity
+                // operator.a()
+                // .whileTrue(
+                // !intake.getState().equals(intake.getOutType())
+                // ? new ParallelCommandGroup(
+                // new ShootAtCalculatedVelocity(shooter,
+                // indexer, vision),
+                // new BounceIntake(intake))
+
+                // :
+
+                // new SequentialCommandGroup(
+                // new PivotIntake(intake),
+                // new ParallelCommandGroup(
+                // new ShootAtCalculatedVelocity(
+                // shooter,
+                // indexer,
+                // vision))))
+                // .onFalse(
+                // new ParallelCommandGroup(
+                // Commands.runOnce(shooter.stop()),
+                // Commands.runOnce(indexer.stage1Off()),
+                // Commands.runOnce(indexer.stopFeeder()),
+                // Commands.runOnce(intake.stopPivot())));
 
                 // Shooter velocity presets
-                operator.leftBumper()
-                                .whileTrue(
-                                                !intake.getState().equals(intake.getOutType())
-                                                                ? new ParallelCommandGroup(
-                                                                                new ShootAtSetSpeed(shooter, indexer,
-                                                                                                Constants.Shooter.SHOOTER_MAX_RPS))
+                // operator.leftBumper()
+                // .whileTrue(
+                // !intake.getState().equals(intake.getOutType())
+                // ? new ParallelCommandGroup(
+                // new ShootAtSetSpeed(shooter, indexer,
+                // Constants.Shooter.SHOOTER_MAX_RPS))
 
-                                                                :
+                // :
 
-                                                                new SequentialCommandGroup(
-                                                                                new PivotIntake(intake),
-                                                                                new ParallelCommandGroup(
-                                                                                                new ShootAtSetSpeed(
-                                                                                                                shooter,
-                                                                                                                indexer,
-                                                                                                                Constants.Shooter.SHOOTER_MAX_RPS))))
-                                .onFalse(
-                                                new ParallelCommandGroup(
-                                                                Commands.runOnce(shooter.stop()),
-                                                                Commands.runOnce(indexer.stage1Off()),
-                                                                Commands.runOnce(indexer.stopFeeder()),
-                                                                Commands.runOnce(intake.stopPivot())));
+                // new SequentialCommandGroup(
+                // new PivotIntake(intake),
+                // new ParallelCommandGroup(
+                // new ShootAtSetSpeed(
+                // shooter,
+                // indexer,
+                // Constants.Shooter.SHOOTER_MAX_RPS))))
+                // .onFalse(
+                // new ParallelCommandGroup(
+                // Commands.runOnce(shooter.stop()),
+                // Commands.runOnce(indexer.stage1Off()),
+                // Commands.runOnce(indexer.stopFeeder()),
+                // Commands.runOnce(intake.stopPivot())));
 
-                operator.rightBumper()
-                                .whileTrue(
-                                                !intake.getState().equals(intake.getOutType())
-                                                                ? new ParallelCommandGroup(
-                                                                                new ShootAtSetSpeed(shooter, indexer,
-                                                                                                Constants.Shooter.HALF_FIELD_RPS))
+                // operator.rightBumper()
+                // .whileTrue(
+                // !intake.getState().equals(intake.getOutType())
+                // ? new ParallelCommandGroup(
+                // new ShootAtSetSpeed(shooter, indexer,
+                // Constants.Shooter.HALF_FIELD_RPS))
 
-                                                                :
+                // :
 
-                                                                new SequentialCommandGroup(
-                                                                                new PivotIntake(intake),
-                                                                                new ParallelCommandGroup(
-                                                                                                new ShootAtSetSpeed(
-                                                                                                                shooter,
-                                                                                                                indexer,
-                                                                                                                Constants.Shooter.HALF_FIELD_RPS))))
-                                .onFalse(
-                                                new ParallelCommandGroup(
-                                                                Commands.runOnce(shooter.stop()),
-                                                                Commands.runOnce(indexer.stage1Off()),
-                                                                Commands.runOnce(indexer.stopFeeder()),
-                                                                Commands.runOnce(intake.stopPivot())));
+                // new SequentialCommandGroup(
+                // new PivotIntake(intake),
+                // new ParallelCommandGroup(
+                // new ShootAtSetSpeed(
+                // shooter,
+                // indexer,
+                // Constants.Shooter.HALF_FIELD_RPS))))
+                // .onFalse(
+                // new ParallelCommandGroup(
+                // Commands.runOnce(shooter.stop()),
+                // Commands.runOnce(indexer.stage1Off()),
+                // Commands.runOnce(indexer.stopFeeder()),
+                // Commands.runOnce(intake.stopPivot())));
 
                 operator.leftStick()
                                 .whileTrue(Commands.run(shooter.setVelocity(-10)))
@@ -250,103 +278,104 @@ public final class RobotContainer implements RobotMethods {
 
                 // Indexer stage 1 (POV left & up both trigger oscillation)
                 operator.povLeft()
-                                .whileTrue(Commands.run(indexer.oscillateStage1()))
+                                .whileTrue(Commands.run(indexer.stage1On()))
                                 .onFalse(Commands.run(indexer.stage1Off()));
 
-                operator.povDown()
-                                .whileTrue(Commands.run(intake.outake()))
-                                .onFalse(Commands.run(intake.stopIntake()));
+                // operator.povDown()
+                // .whileTrue(Commands.run(intake.outake()))
+                // .onFalse(Commands.run(intake.stopIntake()));
 
-                // Intake + indexer together
-                operator.b()
-                                .whileTrue(Commands.run(intake.intake()))
-                                .onFalse(Commands.run(intake.stopIntake()));
+                // // Intake + indexer together
+                // operator.b()
+                // .whileTrue(Commands.run(intake.intake()))
+                // .onFalse(Commands.run(intake.stopIntake()));
 
-                // Intake pivot manual control
-                operator.back()
-                                .whileTrue(Commands.run(intake.runPivotRawIn()))
-                                .onFalse(Commands.run(intake.stopPivot()));
+                // // Intake pivot manual control
+                // operator.back()
+                // .whileTrue(Commands.run(intake.runPivotRawIn()))
+                // .onFalse(Commands.run(intake.stopPivot()));
 
-                operator.rightStick()
-                                .whileTrue(Commands.run(intake.runPivotRawOut()))
-                                .onFalse(Commands.run(intake.stopPivot()));
+                // operator.rightStick()
+                // .whileTrue(Commands.run(intake.runPivotRawOut()))
+                // .onFalse(Commands.run(intake.stopPivot()));
 
-                operator.povUp().onTrue(Commands.runOnce(intake.zeroPivot()));
+                // operator.povUp().onTrue(Commands.runOnce(intake.zeroPivot()));
 
-                operator.povRight().whileTrue(Commands.run(indexer.stage1Back()))
-                                .onFalse(Commands.run(indexer.stopFeeder()));
+                // operator.povRight().whileTrue(Commands.run(indexer.stage1Back()))
+                // .onFalse(Commands.run(indexer.stopFeeder()));
 
-                operator.x().onTrue(new PivotIntake(intake));
+                // operator.x().onTrue(new PivotIntake(intake));
 
                 // Shooter velocity presets
-                operator.leftBumper()
-                                .whileTrue(
-                                                !intake.getState().equals(intake.getOutType())
-                                                                ? new ParallelCommandGroup(
-                                                                                new ShootAtSetSpeed(shooter, indexer,
-                                                                                                Constants.Shooter.SHOOTER_MAX_RPS))
+                // operator.leftBumper()
+                // .whileTrue(
+                // !intake.getState().equals(intake.getOutType())
+                // ? new ParallelCommandGroup(
+                // new ShootAtSetSpeed(shooter, indexer,
+                // Constants.Shooter.SHOOTER_MAX_RPS))
 
-                                                                :
+                // :
 
-                                                                new SequentialCommandGroup(
-                                                                                new PivotIntake(intake),
-                                                                                new ParallelCommandGroup(
-                                                                                                new ShootAtSetSpeed(
-                                                                                                                shooter,
-                                                                                                                indexer,
-                                                                                                                Constants.Shooter.SHOOTER_MAX_RPS))))
-                                .onFalse(
-                                                new ParallelCommandGroup(
-                                                                Commands.runOnce(shooter.stop()),
-                                                                Commands.runOnce(indexer.stage1Off()),
-                                                                Commands.runOnce(indexer.stopFeeder()),
-                                                                Commands.runOnce(intake.stopPivot())));
+                // new SequentialCommandGroup(
+                // new PivotIntake(intake),
+                // new ParallelCommandGroup(
+                // new ShootAtSetSpeed(
+                // shooter,
+                // indexer,
+                // Constants.Shooter.SHOOTER_MAX_RPS))))
+                // .onFalse(
+                // new ParallelCommandGroup(
+                // Commands.runOnce(shooter.stop()),
+                // Commands.runOnce(indexer.stage1Off()),
+                // Commands.runOnce(indexer.stopFeeder()),
+                // Commands.runOnce(intake.stopPivot())));
 
-                operator.rightTrigger()
-                                .whileTrue(
-                                                !intake.getState().equals(intake.getOutType())
-                                                                ? new ParallelCommandGroup(
-                                                                                new ShootAtSetSpeed(shooter, indexer,
-                                                                                                65))
+                // operator.rightTrigger()
+                // .whileTrue(
+                // !intake.getState().equals(intake.getOutType())
+                // ? new ParallelCommandGroup(
+                // new ShootAtSetSpeed(shooter, indexer,
+                // 65))
 
-                                                                :
+                // :
 
-                                                                new SequentialCommandGroup(
-                                                                                new PivotIntake(intake),
-                                                                                new ParallelCommandGroup(
-                                                                                                new ShootAtSetSpeed(
-                                                                                                                shooter,
-                                                                                                                indexer,
-                                                                                                                Constants.Shooter.HALF_FIELD_RPS))))
-                                .onFalse(
-                                                new ParallelCommandGroup(
-                                                                Commands.runOnce(shooter.stop()),
-                                                                Commands.runOnce(indexer.stage1Off()),
-                                                                Commands.runOnce(indexer.stopFeeder()),
-                                                                Commands.runOnce(intake.stopPivot())));
+                // new SequentialCommandGroup(
+                // new PivotIntake(intake),
+                // new ParallelCommandGroup(
+                // new ShootAtSetSpeed(
+                // shooter,
+                // indexer,
+                // Constants.Shooter.HALF_FIELD_RPS))))
+                // .onFalse(
+                // new ParallelCommandGroup(
+                // Commands.runOnce(shooter.stop()),
+                // Commands.runOnce(indexer.stage1Off()),
+                // Commands.runOnce(indexer.stopFeeder()),
+                // Commands.runOnce(intake.stopPivot())));
 
                 operator.leftTrigger()
                                 .whileTrue(
-                                                !intake.getState().equals(intake.getOutType())
-                                                                ? new ParallelCommandGroup(
-                                                                                new ShootAtSetSpeed(shooter, indexer,
-                                                                                                55))
-
-                                                                :
-
-                                                                new SequentialCommandGroup(
-                                                                                new PivotIntake(intake),
-                                                                                new ParallelCommandGroup(
-                                                                                                new ShootAtSetSpeed(
-                                                                                                                shooter,
-                                                                                                                indexer,
-                                                                                                                Constants.Shooter.HALF_FIELD_RPS))))
+                                                Commands.run(
+                                                                shooter.runFullSpeedRaw()))
                                 .onFalse(
-                                                new ParallelCommandGroup(
-                                                                Commands.runOnce(shooter.stop()),
-                                                                Commands.runOnce(indexer.stage1Off()),
-                                                                Commands.runOnce(indexer.stopFeeder()),
-                                                                Commands.runOnce(intake.stopPivot())));
+                                                Commands.run(
+                                                                shooter.stop()));
+
+                // :
+
+                // new SequentialCommandGroup(
+                // new PivotIntake(intake),
+                // new ParallelCommandGroup(
+                // new ShootAtSetSpeed(
+                // shooter,
+                // indexer,
+                // Constants.Shooter.HALF_FIELD_RPS))))
+                // .onFalse(
+                // new ParallelCommandGroup(
+                // Commands.runOnce(shooter.stop()),
+                // Commands.runOnce(indexer.stage1Off()),
+                // Commands.runOnce(indexer.stopFeeder()),
+                // Commands.runOnce(intake.stopPivot())));
 
         }
 
@@ -355,6 +384,12 @@ public final class RobotContainer implements RobotMethods {
         }
 
         public void registerNamedCommands() {
+                NamedCommands.registerCommand("midshoot",
+                                new ShootAtSetSpeedTimed(shooter, indexer, 55, 5, shooter, indexer));
+                // NamedCommands.registerCommand("aim", new AimTimed(drivetrain, vision, aiming,
+                // 1, drivetrain, vision));
+                // NamedCommands.registerCommand("pivotintake", new PivotIntake(intake));
+                // NamedCommands.registerCommand("Intake", new IntakeTimed(intake, 5, intake));
         }
 
         @Override
@@ -365,8 +400,8 @@ public final class RobotContainer implements RobotMethods {
                 }
 
                 // always be tracking the latest angle we need to aim the robot at
-                latestAngleToHubTargetCenter = vision
-                                .calculateRobotOffsetToTargetCenter(drivetrain.getPose().getRotation());
+                // latestAngleToHubTargetCenter = vision
+                // .calculateRobotOffsetToTargetCenter(drivetrain.getPose().getRotation());
         }
 
         @Override
@@ -399,6 +434,12 @@ public final class RobotContainer implements RobotMethods {
                 drivetrain.setControl(drive.withVelocityX(-joystick.getLeftY() * MAX_SPEED)
                                 .withVelocityY(-joystick.getLeftX() * MAX_SPEED)
                                 .withRotationalRate(-joystick.getRightX() * MAX_ANGULAR_RATE));
+
+                shooter.stop().run();
+                // intake.stopIntake().run();
+                // intake.stopPivot().run();
+                indexer.stopFeeder().run();
+                indexer.stage1Off().run();
         }
 
         @Override
@@ -407,6 +448,11 @@ public final class RobotContainer implements RobotMethods {
                                 .withVelocityY(-joystick.getLeftX() * MAX_SPEED)
                                 .withRotationalRate(-joystick.getRightX() * MAX_ANGULAR_RATE));
 
+                shooter.stop().run();
+                // intake.stopIntake().run();
+                // intake.stopPivot().run();
+                indexer.stopFeeder().run();
+                indexer.stage1Off().run();
         }
 
         @Override

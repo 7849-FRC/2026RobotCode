@@ -1,6 +1,8 @@
 package frc.robot.subsystems;
 
+import com.ctre.phoenix.motorcontrol.can.VictorSPXConfiguration;
 import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
+import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
 import com.ctre.phoenix6.configs.MotorOutputConfigs;
 import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
@@ -28,6 +30,7 @@ public final class Intake extends SubsystemBase implements NiceSubsytem {
 
     public IntakeState currentState;
     public BounceState bounceState;
+    public boolean shouldBeOut = false;
 
     private final TalonFX leftPivotMotor;
     private final TalonFX rightPivotMotor;
@@ -40,10 +43,17 @@ public final class Intake extends SubsystemBase implements NiceSubsytem {
 
         this.intakeMotor.setInverted(true);
 
+        final VictorSPXConfiguration intakeConfig = new VictorSPXConfiguration();
+        intakeConfig.voltageCompSaturation = 8.0;
+        intakeMotor.configAllSettings(intakeConfig);
+        intakeMotor.enableVoltageCompensation(true);
+
         this.currentState = IntakeState.IN;
         this.bounceState = BounceState.NOT;
 
         final TalonFXConfiguration configs = new TalonFXConfiguration()
+                .withCurrentLimits(
+                        new CurrentLimitsConfigs().withStatorCurrentLimit(40).withStatorCurrentLimitEnable(true))
                 .withMotorOutput(
                         new MotorOutputConfigs()
                                 .withNeutralMode(NeutralModeValue.Brake))
@@ -130,6 +140,37 @@ public final class Intake extends SubsystemBase implements NiceSubsytem {
         return leftPivotMotor.getPosition().getValueAsDouble();
     }
 
+    public Runnable runIntakeMotor() {
+        return () -> {
+            leftPivotMotor.set(-1);
+        };
+    }
+    
+
+    public Runnable runNewFeeder() {
+        return () -> {
+            rightPivotMotor.set(-0.3);
+        };
+    }
+
+    public Runnable feedNewFeeder() {
+        return () -> {
+            rightPivotMotor.set(0.3);
+        };
+    }
+
+    public Runnable stopIntakeMotor() {
+        return () -> {
+            leftPivotMotor.set(0);
+        };
+    }
+
+    public Runnable stopNewFeeder() {
+        return () -> {
+            rightPivotMotor.set(0);
+        };
+    }
+
     @Override
     public void initialize() {
 
@@ -141,12 +182,18 @@ public final class Intake extends SubsystemBase implements NiceSubsytem {
 
         SmartDashboard.putNumber("Intake Position", leftPivotMotor.getPosition().getValueAsDouble());
 
-        if (getPivotPosition() >= 20) {
+        if (getPivotPosition() >= 17) {
             setCurrentState(Intake.IntakeState.OUT);
-        } else if (getPivotPosition() <= 5) {
+        } else if (getPivotPosition() <= 0) {
             setCurrentState(Intake.IntakeState.IN);
             zeroPivot();
         }
+
+        if (!shouldBeOut && getPivotPosition() >= 3) {
+            setPivotPositionControl(new PositionVoltage(0).withSlot(0)).run();
+        }
+
+        SmartDashboard.putBoolean("Should be out?", shouldBeOut);
     }
 
     public IntakeState getInType() {
